@@ -1,44 +1,79 @@
-import 'package:chat_app/widgets/chat_bubble.dart';
-import 'package:chat_app/widgets/chat_input.dart';
+import 'dart:convert';
+
+import 'package:chat_app/models/chat_message_entity.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-class ChatPage extends StatelessWidget {
-  const ChatPage({Key? key}) : super(key: key);
+import 'widgets/chat_bubble.dart';
+import 'widgets/chat_input.dart';
 
-  ChatBubble fromMe(message) {
-    return ChatBubble(alignment: Alignment.centerRight, message: message);
+class ChatPage extends StatefulWidget {
+  ChatPage({Key? key}) : super(key: key);
+
+  @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  List<ChatMessageEntity> _messages = [];
+
+  _loadInitialMessages() async {
+    final response =
+    await rootBundle.loadString("resources/mock_messages.json");
+    final List<dynamic> decodedList = jsonDecode(response) as List;
+    final List<ChatMessageEntity> chatMessages = decodedList
+        .map((messageData) => ChatMessageEntity.fromJson(messageData))
+        .toList();
+
+    setState(() {
+      _messages = chatMessages;
+    });
   }
 
-  ChatBubble fromThem(message) {
-    return ChatBubble(alignment: Alignment.centerLeft, message: message);
+  onMessageSent(ChatMessageEntity entity) {
+    _messages.add(entity);
+    setState(() {});
+  }
+
+  @override
+  void initState() {
+    _loadInitialMessages();
+    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
+    final username = ModalRoute.of(context)!.settings.arguments as String;
+
     return Scaffold(
       appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: Text('Hi USER'),
-          actions: [
-            IconButton(
-                onPressed: () {
-                  print('Logout pressed');
-                },
-                icon: Icon(Icons.logout))
-          ]),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text('Hi $username!'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.pushReplacementNamed(context, '/');
+              print('logout');
+            },
+            icon: Icon(Icons.logout),
+          )
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-                itemCount: 10,
-                itemBuilder: (context, index) {
-                  return index % 2 == 0
-                      ? fromThem("Hello, this is Pooja!")
-                      : fromMe("Oh hey!");
-                }),
-          ),
-          ChatInput(),
+              child: ListView.builder(
+                  itemCount: _messages.length,
+                  itemBuilder: (context, index) {
+                    return ChatBubble(
+                      alignment: _messages[index].author.userName == 'poojab26'
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      entity: _messages[index],
+                    );
+                  })),
+          ChatInput(onSubmit: onMessageSent),
         ],
       ),
     );
